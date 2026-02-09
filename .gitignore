@@ -1,12 +1,27 @@
+# 1. Eliminar del repositorio (pero mantener en local)
+git rm --cached .DS_Store
+
+# 2. Si hay en subcarpetas también
+git rm --cached */.DS_Store
+
+# 3. Commit
+git commit -m "Eliminar archivos .DS_Store"
+
+# 4. Push
+git push
+```
+
+---
+
+## 🛡️ PREVENIR QUE VUELVA A PASAR:
+
+Tu `.gitignore` ya tiene:
+```
+.DS_Store
+```
+
+Pero para asegurarte de que ignora TODOS los .DS_Store en TODAS las carpetas:
+```
 # macOS
 .DS_Store
-
-# Python
-__pycache__/
-*.pyc
-
-# VSCode
-.vscode/
-
-# Jupyter
-.ipynb_checkpoints/
+**/.DS_Store
