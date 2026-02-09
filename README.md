@@ -19,6 +19,7 @@ El objetivo es aplicar lo aprendido en el módulo "Python for Data" haciendo lim
 ```
 PROYECTO-EDA-PHYTON/
 │
+├── .gitignore
 ├── README.md
 │
 ├── DATA/
