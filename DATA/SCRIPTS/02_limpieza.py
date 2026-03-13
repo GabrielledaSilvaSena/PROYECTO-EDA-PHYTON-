@@ -1,62 +1,123 @@
 """
-Limpieza de datos
+Script 2: Limpieza y transformación de los datos
+Objetivo: Preparar el dataset para el análisis corrigiendo errores, 
+          tipos de datos y valores nulos
 """
-
 import pandas as pd
+import os
 
-# Cargar datos
+# ---- Rutas ----
+RUTA_CSV = 'DATA/RAW/bank-additional.csv'
+RUTA_EXCEL = 'DATA/RAW/customer-details.xlsx'
+RUTA_SALIDA = 'DATA/PROCESSED/bank_cleaned.csv'
+RUTA_CLIENTES = 'DATA/PROCESSED/customer_cleaned.csv'
+
+# ---- Cargar datos ----
 print("Cargando datos...")
-df = pd.read_csv('DATA/RAW/bank-additional.csv')
+df = pd.read_csv(RUTA_CSV)
+print(f"Registros cargados: {len(df)} filas, {len(df.columns)} columnas")
 
-print(f"\nTotal filas: {len(df)}")
-print(f"Total columnas: {len(df.columns)}")
+# ---- Eliminar columna índice duplicada ----
+if 'Unnamed: 0' in df.columns:
+    df = df.drop('Unnamed: 0', axis=1, errors='ignore')
+    print("\nColumna Unnamed: 0 eliminada (era un índice duplicado)")
 
-# Ver columnas
-print("\nColumnas:")
-print(df.columns.tolist())
+# ---- Verificar duplicados ----
+print("\n--- Verificando duplicados ---")
+duplicados = df.duplicated().sum()
+print(f"Duplicados encontrados: {duplicados}")
+if duplicados > 0:
+    df = df.drop_duplicates()
+    print(f"Duplicados eliminados. Registros restantes: {len(df)}")
+else:
+    print("No hay filas duplicadas. Dataset limpio en este aspecto.")
 
-# Hay una columna rara "Unnamed: 0" que parece un índice
-df = df.drop('Unnamed: 0', axis=1)
-print("\nColumna Unnamed eliminada")
-
-# Chequear valores nulos
-print("\n--- Valores nulos ---")
+# ---- Ver nulos antes de limpiar ----
+print("\n--- Valores nulos antes de limpiar ---")
 print(df.isnull().sum())
 
-# Rellenar nulos en age con la mediana
-print("\nRellenando nulos en age...")
+# ---- Rellenar nulos en variables clave ----
+print("\nRellenando nulos...")
+
+# age: mediana porque es una variable numérica con posibles outliers
 mediana_edad = df['age'].median()
 df['age'] = df['age'].fillna(mediana_edad)
-print(f"Se usó la mediana: {mediana_edad}")
+print(f"  age: rellenado con mediana ({mediana_edad:.0f} años)")
 
-# Rellenar nulos en job, education, marital con "unknown"
-print("\nRellenando nulos en job, education, marital...")
-df['job'] = df['job'].fillna('unknown')
-df['education'] = df['education'].fillna('unknown')  
-df['marital'] = df['marital'].fillna('unknown')
+# Variables categóricas: 'unknown' para no inventar categorías
+for col in ['job', 'education', 'marital']:
+    n_nulos = df[col].isnull().sum()
+    df[col] = df[col].fillna('unknown')
+    print(f"  {col}: {n_nulos} nulos rellenados con 'unknown'")
 
-# Las variables default, housing, loan tienen muchos nulos
-# Asumo que si es nulo = no tiene (0)
-print("\nRellenando nulos en default, housing, loan con 0...")
-df['default'] = df['default'].fillna(0)
-df['housing'] = df['housing'].fillna(0)
-df['loan'] = df['loan'].fillna(0)
+# Variables binarias: 0 si es nulo (asumimos que no tiene el producto)
+for col in ['default', 'housing', 'loan']:
+    n_nulos = df[col].isnull().sum()
+    df[col] = df[col].fillna(0).astype(int)
+    print(f"  {col}: {n_nulos} nulos rellenados con 0, convertido a int")
 
-# Convertir texto a minúsculas para estandarizar
+# ---- Corregir columnas numéricas con coma decimal ----
+# Estas columnas vinieron como texto porque usan coma como separador decimal
+# Las convertimos a float para poder analizarlas correctamente
+print("\n--- Convirtiendo columnas numéricas con coma decimal ---")
+columnas_coma = ['euribor3m', 'cons.price.idx', 'cons.conf.idx', 'nr.employed']
+
+for col in columnas_coma:
+    if col in df.columns:
+        df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+        print(f"  {col}: convertida a float correctamente")
+
+# ---- Estandarizar texto a minúsculas ----
 print("\nConvirtiendo texto a minúsculas...")
-df['marital'] = df['marital'].str.lower()
-df['education'] = df['education'].str.lower()
-df['y'] = df['y'].str.lower()
+for col in ['marital', 'education', 'job', 'y', 'contact', 'poutcome']:
+    if col in df.columns:
+        df[col] = df[col].str.lower()
 
-# Verificar cuántos nulos quedan
+# ---- Verificar nulos que quedan ----
 print("\n--- Nulos después de limpiar ---")
 nulos_restantes = df.isnull().sum()
-print(nulos_restantes[nulos_restantes > 0])
+nulos_con_valor = nulos_restantes[nulos_restantes > 0]
 
-# Guardar
-print("\nGuardando datos limpios...")
-df.to_csv('DATA/PROCESSED/bank_cleaned.csv', index=False)
-print("Archivo guardado en DATA/PROCESSED/bank_cleaned.csv")
+if len(nulos_con_valor) > 0:
+    print(nulos_con_valor)
+    print("\nNota: Las columnas 'date' y otras variables económicas siguen teniendo")
+    print("algunos nulos. Se dejan así porque:")
+    print("  - 'date': no se usa en el análisis principal")
+    print("  - Variables económicas (si quedan): la conversión de coma a punto")
+    print("    puede dejar NaN en valores que no eran numéricos. No se imputan")
+    print("    porque son indicadores macroeconómicos que requieren datos reales.")
+else:
+    print("No quedan nulos en las columnas principales.")
 
-print(f"\nDataset final: {len(df)} filas, {len(df.columns)} columnas")
-print("¡Listo!")
+# ---- Guardar dataset limpio ----
+os.makedirs('DATA/PROCESSED', exist_ok=True)
+df.to_csv(RUTA_SALIDA, index=False)
+print(f"\nDataset limpio guardado en: {RUTA_SALIDA}")
+print(f"Registros finales: {len(df)} filas, {len(df.columns)} columnas")
+
+# ---- Limpiar y combinar datos de clientes (Excel) ----
+print("\n--- Limpiando datos de clientes (Excel) ---")
+hojas = ['2012', '2013', '2014']
+lista_dfs = []
+
+for hoja in hojas:
+    df_hoja = pd.read_excel(RUTA_EXCEL, sheet_name=hoja)
+    lista_dfs.append(df_hoja)
+
+df_clientes = pd.concat(lista_dfs, ignore_index=True)
+print(f"Total clientes combinados: {len(df_clientes)}")
+
+# Limpiar nulos en Income (usamos mediana)
+if df_clientes['Income'].isnull().sum() > 0:
+    mediana_income = df_clientes['Income'].median()
+    df_clientes['Income'] = df_clientes['Income'].fillna(mediana_income)
+    print(f"Income: nulos rellenados con mediana ({mediana_income:.0f})")
+
+# Convertir Dt_Customer a fecha
+df_clientes['Dt_Customer'] = pd.to_datetime(df_clientes['Dt_Customer'], errors='coerce')
+
+df_clientes.to_csv(RUTA_CLIENTES, index=False)
+print(f"Datos de clientes guardados en: {RUTA_CLIENTES}")
+
+print("\n¡Limpieza completada!")

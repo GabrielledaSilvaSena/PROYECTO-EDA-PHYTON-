@@ -1,14 +1,18 @@
 """
-Script para explorar los datos del proyecto
+Script 1: Exploración inicial de los datos
+Objetivo: Primera vista del dataset para entender su estructura antes de limpiar
 """
-
 import pandas as pd
 
-# Cargar el archivo CSV
-print("Cargando los datos...")
-df = pd.read_csv('DATA/RAW/bank-additional.csv')
+# ---- Rutas de los archivos ----
+RUTA_CSV = 'DATA/RAW/bank-additional.csv'
+RUTA_EXCEL = 'DATA/RAW/customer-details.xlsx'
+HOJAS_EXCEL = ['2012', '2013', '2014']
 
-# Ver cuántos datos tenemos
+# ---- Cargar el archivo CSV ----
+print("Cargando los datos...")
+df = pd.read_csv(RUTA_CSV)
+
 print(f"\nTotal de registros: {len(df)}")
 print(f"Total de columnas: {len(df.columns)}")
 
@@ -46,31 +50,28 @@ print(df['education'].value_counts())
 print("\n--- Variable objetivo (y) ---")
 print(df['y'].value_counts())
 
-# Ver el porcentaje
 total = len(df)
 si = df[df['y'] == 'yes'].shape[0]
 no = df[df['y'] == 'no'].shape[0]
 print(f"\nSí: {si} ({si/total*100:.2f}%)")
 print(f"No: {no} ({no/total*100:.2f}%)")
 
-# Ahora cargo los datos de clientes del Excel
+# ---- Cargar datos de clientes del Excel ----
 print("\n\n--- Cargando datos de clientes ---")
 
-# El Excel tiene 3 hojas, una por cada año
-df_2012 = pd.read_excel('DATA/RAW/customer-details.xlsx', sheet_name='2012')
-df_2013 = pd.read_excel('DATA/RAW/customer-details.xlsx', sheet_name='2013')
-df_2014 = pd.read_excel('DATA/RAW/customer-details.xlsx', sheet_name='2014')
+dataframes_clientes = {}
+for hoja in HOJAS_EXCEL:
+    dataframes_clientes[hoja] = pd.read_excel(RUTA_EXCEL, sheet_name=hoja)
+    print(f"Clientes {hoja}: {len(dataframes_clientes[hoja])} registros")
 
-print(f"Clientes 2012: {len(df_2012)} registros")
-print(f"Clientes 2013: {len(df_2013)} registros")
-print(f"Clientes 2014: {len(df_2014)} registros")
-print(f"Total clientes: {len(df_2012) + len(df_2013) + len(df_2014)}")
+total_clientes = sum(len(df_hoja) for df_hoja in dataframes_clientes.values())
+print(f"Total clientes: {total_clientes}")
 
 # Ver cómo son los datos de 2012
 print("\n--- Primeras filas de clientes 2012 ---")
-print(df_2012.head())
+print(dataframes_clientes['2012'].head())
 
 print("\n--- Columnas disponibles ---")
-print(df_2012.columns.tolist())
+print(dataframes_clientes['2012'].columns.tolist())
 
 print("\nExploración inicial completada!")
